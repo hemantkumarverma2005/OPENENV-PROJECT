@@ -365,14 +365,15 @@ def run_task(task_id: str) -> dict:
                 reasoning         = "EMERGENCY: Inflation > 0.10 — Volcker tightening",
             )
 
-        obs, reward, done, info = env.step(action)
-        history.append(info)
-        total_reward += reward.total
+        obs = env.step(action)
+        history.append(obs.metadata)
+        total_reward += obs.reward or 0.0
         step += 1
+        rbd = obs.metadata.get("reward_breakdown", {})
 
         print(
             f"[STEP] task={task_id} step={step} "
-            f"reward={reward.total:.4f} task_progress={reward.task_progress:.4f} "
+            f"reward={obs.reward:.4f} task_progress={rbd.get('task_progress', 0):.4f} "
             f"gdp={obs.gdp:.2f} gini={obs.gini:.4f} "
             f"unrest={obs.unrest:.4f} satisfaction={obs.satisfaction:.4f} "
             f"gov_budget={obs.gov_budget:.2f} tax_rate={obs.tax_rate:.4f} "
@@ -388,6 +389,8 @@ def run_task(task_id: str) -> dict:
             f"action_min_wage={action.minimum_wage_delta:.2f}",
             flush=True
         )
+
+        done = obs.done
 
         # Rate-limit protection: brief pause between API calls
         time.sleep(0.3)

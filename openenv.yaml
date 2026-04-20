@@ -1,263 +1,84 @@
+spec_version: 1
 name: SocialContract-v0
 version: "1.0.0"
+type: space
+runtime: fastapi
+app: app:app
+port: 7860
+
+# Human-readable metadata (surfaced in the OpenEnv registry)
 description: >
-  A fiscal policy decision-support environment where an LLM agent assists a
-  government analyst in selecting tax, welfare, public spending, monetary policy,
-  fiscal stimulus, and trade policy levels for a population of 100 heterogeneous
-  citizens across 4 income groups with trust dynamics and adaptive behavior.
-  Models the kind of policy recommendation task performed daily by central bank
-  advisors, treasury analysts, and IMF consultants.
+  Economic Policy Advisory Environment: an LLM agent acts as a government
+  advisor recommending 8 fiscal, monetary, trade, and labor policy levers
+  per quarter for a population of 100 heterogeneous citizens across 4 income
+  classes. Implements Phillips Curve, Okun's Law, Gini, Stackelberg investment
+  dynamics, capital flight, strikes, and 9 exogenous shock types.
+  5 tasks of escalating difficulty calibrated to real-world events
+  (pre-2008 Ireland → COVID-19 pandemic). Full RL training pipeline included.
 
-real_world_task: fiscal_policy_decision_support
-tags:
-  - fiscal-policy
-  - monetary-policy
-  - decision-support
-  - financial-analysis
-  - government-advisory
-  - multi-objective
-  - agent-based-simulation
-  - trust-dynamics
-
+# Schema matches EconomicObservation and PolicyAction Pydantic models exactly.
+# The SDK auto-derives JSON schemas at /schema; these are for human reference.
 observation:
-  type: structured
-  format: json
   fields:
-    - name: step
-      type: integer
-      description: Current step number
-    - name: gdp
-      type: float
-      description: Total GDP this step
-    - name: gdp_delta
-      type: float
-      description: GDP change vs previous step
-    - name: gini
-      type: float
-      range: [0.0, 1.0]
-      description: Gini coefficient (0=equal, 1=max inequality)
-    - name: satisfaction
-      type: float
-      range: [0.0, 1.0]
-      description: Mean citizen satisfaction
-    - name: unrest
-      type: float
-      range: [0.0, 1.0]
-      description: Fraction of citizens in unrest
-    - name: gov_budget
-      type: float
-      description: Government budget (negative = deficit)
-    - name: tax_rate
-      type: float
-      range: [0.0, 0.8]
-      description: Current tax rate
-    - name: ubi_amount
-      type: float
-      range: [0.0, 50.0]
-      description: Universal Basic Income per citizen per step
-    - name: public_good_level
-      type: float
-      range: [0.0, 1.0]
-      description: Public goods investment level
-    - name: inflation
-      type: float
-      range: [-0.5, 1.0]
-      description: Current inflation rate
-    - name: unemployment
-      type: float
-      range: [0.0, 1.0]
-      description: Fraction of citizens effectively unemployed
-    - name: shock_event
-      type: string
-      description: Current exogenous economic shock (or 'none')
-    - name: shock_duration_remaining
-      type: integer
-      description: Steps remaining for current persistent shock (0=none)
-    - name: interest_rate
-      type: float
-      range: [0.0, 0.20]
-      description: Central bank interest rate
-    - name: import_tariff
-      type: float
-      range: [0.0, 0.30]
-      description: Import tariff rate (trade protection)
-    - name: consumer_confidence
-      type: float
-      range: [0.0, 1.0]
-      description: Aggregate consumer confidence index
-    - name: money_supply
-      type: float
-      description: Cumulative money supply change (QE positive, tightening negative)
-    - name: minimum_wage
-      type: float
-      range: [0.0, 20.0]
-      description: Current minimum wage level
-    - name: capital_flight_rate
-      type: float
-      range: [0.0, 1.0]
-      description: Ultra-rich capital flight fraction
-    - name: strike_active
-      type: boolean
-      description: Whether a citizen strike is currently underway
-    - name: private_investment
-      type: float
-      description: Domestic private investment from wealthy classes
-    - name: poor_wealth
-      type: float
-      description: Mean wealth of poor class (50 citizens)
-    - name: middle_wealth
-      type: float
-      description: Mean wealth of middle class (30 citizens)
-    - name: wealthy_wealth
-      type: float
-      description: Mean wealth of wealthy class (15 citizens)
-    - name: ultra_rich_wealth
-      type: float
-      description: Mean wealth of ultra-rich class (5 citizens)
-    - name: task_id
-      type: string
-      description: Current task identifier
-    - name: task_description
-      type: string
-      description: Natural language description of the task goal
+    - {name: step, type: int}
+    - {name: gdp, type: float}
+    - {name: gdp_delta, type: float}
+    - {name: gini, type: float}
+    - {name: satisfaction, type: float}
+    - {name: unrest, type: float}
+    - {name: gov_budget, type: float}
+    - {name: tax_rate, type: float}
+    - {name: ubi_amount, type: float}
+    - {name: public_good_level, type: float}
+    - {name: inflation, type: float}
+    - {name: unemployment, type: float}
+    - {name: interest_rate, type: float}
+    - {name: import_tariff, type: float}
+    - {name: consumer_confidence, type: float}
+    - {name: money_supply, type: float}
+    - {name: minimum_wage, type: float}
+    - {name: capital_flight_rate, type: float}
+    - {name: strike_active, type: bool}
+    - {name: private_investment, type: float}
+    - {name: shock_event, type: str}
+    - {name: shock_duration_remaining, type: int}
+    - {name: poor_wealth, type: float}
+    - {name: middle_wealth, type: float}
+    - {name: wealthy_wealth, type: float}
+    - {name: ultra_rich_wealth, type: float}
+    - {name: task_id, type: str}
+    - {name: task_description, type: str}
 
 action:
-  type: structured
-  format: json
   fields:
-    - name: tax_delta
-      type: float
-      range: [-0.10, 0.10]
-      description: Change to apply to tax rate this step
-    - name: ubi_delta
-      type: float
-      range: [-10.0, 10.0]
-      description: Change to apply to UBI amount this step
-    - name: public_good_delta
-      type: float
-      range: [-0.10, 0.10]
-      description: Change to apply to public goods level this step
-    - name: interest_rate_delta
-      type: float
-      range: [-0.03, 0.03]
-      description: Change to central bank interest rate (monetary policy)
-    - name: stimulus_package
-      type: float
-      range: [0.0, 500.0]
-      description: One-time fiscal stimulus spending (0=none, max 500)
-    - name: import_tariff_delta
-      type: float
-      range: [-0.05, 0.05]
-      description: Change to import tariff rate (trade policy)
-    - name: money_supply_delta
-      type: float
-      range: [-500.0, 500.0]
-      description: Quantitative easing (+) or tightening (-). Inflates/deflates money supply.
-    - name: minimum_wage_delta
-      type: float
-      range: [-2.0, 2.0]
-      description: Change to minimum wage (labor policy, Card-Krueger debate)
-    - name: reasoning
-      type: string
-      max_length: 200
-      description: Agent's natural language reasoning
-    - name: policy_speech
-      type: string
-      max_length: 150
-      description: Optional public speech to calm markets (max 3 per episode)
+    - {name: tax_delta, type: float, range: [-0.10, 0.10]}
+    - {name: ubi_delta, type: float, range: [-10.0, 10.0]}
+    - {name: public_good_delta, type: float, range: [-0.10, 0.10]}
+    - {name: interest_rate_delta, type: float, range: [-0.03, 0.03]}
+    - {name: stimulus_package, type: float, range: [0.0, 500.0]}
+    - {name: import_tariff_delta, type: float, range: [-0.05, 0.05]}
+    - {name: money_supply_delta, type: float, range: [-500.0, 500.0]}
+    - {name: minimum_wage_delta, type: float, range: [-2.0, 2.0]}
+    - {name: reasoning, type: str}
 
 reward:
-  type: structured
-  format: json
   range: [0.0, 1.0]
-  note: >
-    Step rewards (returned by step()) are normalised to [0.0, 1.0] every step.
-    Grader scores (returned by /grade) are also in [0.0, 1.0].
-    task_progress in StepReward is in [0.0, 1.0] every step.
-  components:
-    - name: gdp_component
-      weight: 0.35
-    - name: equality_component
-      weight: 0.25
-    - name: satisfaction_component
-      weight: 0.15
-    - name: unrest_penalty
-      weight: -0.10
-    - name: deficit_penalty
-      weight: -0.05
-    - name: volatility_penalty
-      description: Policy volatility penalty (negative or zero)
-    - name: task_progress
-      range: [0.0, 1.0]
-      description: Task-specific progress score
+  components: [gdp_growth, equality, satisfaction, unrest_penalty,
+               deficit_penalty, volatility_penalty, task_progress]
 
 tasks:
   - id: task1_stability
-    name: "Maintain Economic Stability"
     difficulty: easy
     max_steps: 20
-    grader: graders.graders.grade_task1_stability
-    success_criteria:
-      - GDP growth positive each step
-      - Gini below 0.43 throughout
-      - Unrest below 0.15 throughout
-      - Budget remains positive
-
   - id: task2_recession
-    name: "Recession Recovery"
     difficulty: medium
     max_steps: 30
-    grader: graders.graders.grade_task2_recession
-    success_criteria:
-      - Budget recovers from -2500 to positive
-      - GDP growth turns consistently positive
-      - Unrest kept below 0.40 during recovery
-
   - id: task3_crisis
-    name: "Inequality Crisis Resolution"
     difficulty: hard
     max_steps: 40
-    grader: graders.graders.grade_task3_crisis
-    success_criteria:
-      - Gini trajectory average AND final value below 0.48
-      - Unrest held below 0.10 for last 5+ consecutive steps
-      - GDP growth positive in >70% of steps
-      - All three sustained simultaneously (not just hit once)
-
   - id: task4_stagflation
-    name: "Stagflation Crisis Management"
     difficulty: expert
     max_steps: 35
-    grader: graders.graders.grade_task4_stagflation
-    success_criteria:
-      - GDP growth positive in >60% of steps
-      - Inflation brought below 0.04
-      - Unemployment reduced below 0.08
-      - Budget deficit reduced to above -200
-      - All four sustained simultaneously for full marks
-      - Phase detection — agent should execute 2-phase strategy
-
   - id: task5_pandemic
-    name: "Pandemic Economic Response"
     difficulty: expert
     max_steps: 30
-    grader: graders.graders.grade_task5_pandemic
-    success_criteria:
-      - Unemployment reduced below 0.08 (from 0.25)
-      - GDP growth positive in >55% of steps
-      - Inflation kept below 0.06 despite massive stimulus
-      - Budget deficit reduced from -3000 to above -500
-      - All four sustained simultaneously for full marks
-      - Phase detection — agent should execute 3-phase strategy
-
-endpoints:
-  reset: "POST /reset/{task_id}"
-  step:  "POST /step/{task_id}"
-  state: "GET  /state/{task_id}"
-  grade: "GET  /grade/{task_id}"
-  tasks: "GET  /tasks"
-  health: "GET /health"
-
-inference_script: inference.py
-dockerfile: Dockerfile
-huggingface_space: true

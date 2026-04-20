@@ -194,8 +194,8 @@ def run_episode(model_name: str, task_id: str, seed: int = 42) -> dict:
 
             time.sleep(0.3)  # Rate limit protection
 
-        obs, reward, done, info = env.step(action)
-        total_reward += reward.total
+        obs = env.step(action)
+        total_reward += obs.reward or 0.0
         step += 1
 
     elapsed = time.time() - start_time

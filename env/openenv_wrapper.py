@@ -32,14 +32,23 @@ from env.pydantic_models import EconomicObservation, PolicyAction, StepReward
 from env.market_agent import MarketConsortium
 from env.curriculum import AdaptiveCurriculum, DifficultyConfig, DIFFICULTY_LEVELS
 
+try:
+    from openenv.core.env_server.interfaces import Environment as _SDKEnvironment
+    from openenv.core.env_server.types import State
+except ImportError:  # pragma: no cover — fallback if SDK not installed
+    _SDKEnvironment = object
+    class State:  # type: ignore
+        def __init__(self, **kwargs): pass
+
 MAX_STEPS   = 40
 MAX_BUDGET  = 5000.0
 MAX_UBI     = 50.0
 
 
-class SocialContractOpenEnv:
+class SocialContractOpenEnv(_SDKEnvironment):  # type: ignore[misc]
     """
     OpenEnv-compliant Economic Policy Advisory Environment.
+    Inherits from openenv-core SDK Environment base class.
 
     An LLM agent acts as a government policy advisor.
     Each step it receives an economic report and must recommend
@@ -52,6 +61,9 @@ class SocialContractOpenEnv:
       - Money supply (QE) inflates rich assets but erodes poor purchasing power
       - Minimum wage raises floor income but may reduce employment
     """
+
+    # SDK: each WebSocket session gets its own isolated env instance
+    SUPPORTS_CONCURRENT_SESSIONS: bool = True
 
     TASKS = {
         "task1_stability": {
@@ -147,6 +159,11 @@ class SocialContractOpenEnv:
                  enable_market_agent: bool = False,
                  enable_curriculum: bool = False,
                  difficulty_level: int = 0):
+        # Initialise SDK base class first
+        try:
+            super().__init__()
+        except TypeError:
+            pass  # fallback when SDK not installed
         assert task_id in self.TASKS, f"Unknown task: {task_id}. Choose from {list(self.TASKS)}"
         self.task_id    = task_id
         self.task_cfg   = self.TASKS[task_id]
@@ -192,7 +209,12 @@ class SocialContractOpenEnv:
     def is_done(self) -> bool:
         return self._done
 
-    def reset(self, seed: int | None = None) -> EconomicObservation:
+    def reset(self, seed: int | None = None, **kwargs) -> EconomicObservation:
+        # SDK passes POST /reset body fields as kwargs (e.g. task_id)
+        new_task = kwargs.get("task_id", None)
+        if new_task and new_task in self.TASKS and new_task != self.task_id:
+            self.task_id = new_task
+            self.task_cfg = self.TASKS[new_task]
         if seed is not None:
             self._seed = seed
         self._rng        = np.random.default_rng(self._seed)
@@ -284,8 +306,13 @@ class SocialContractOpenEnv:
         self.prev_gdp = sum(g.wealth.sum() * 0.05 for g in self.citizen_groups)
         return self._build_obs()
 
-    def step(self, action: PolicyAction) -> tuple[EconomicObservation, StepReward, bool, dict]:
-        assert not self._done, "Episode finished — call reset() first"
+    def step(self, action: PolicyAction, timeout_s: Optional[float] = None, **kwargs) -> EconomicObservation:  # type: ignore[override]
+        """Take one policy step. Returns EconomicObservation with .done, .reward, .metadata."""
+        # Guard: auto-reset if step() called on a fresh/un-reset instance
+        if not self.citizen_groups:
+            self.reset(seed=kwargs.get("seed"), task_id=kwargs.get("task_id"))
+        if self._done:
+            raise RuntimeError("Episode finished — call reset() first")
 
         # ── Volatility penalty (all 8 levers) ────────────────────────────
         volatility_penalty = 0.0
@@ -526,9 +553,29 @@ class SocialContractOpenEnv:
             "difficulty_name": self.difficulty.name if self.difficulty else "Normal",
         }
         self._history.append({**info, "reward": reward.total})
-        return obs, reward, done, info
 
-    def state(self) -> dict[str, Any]:
+        # ── Set SDK fields on the observation ────────────────────────────────
+        obs.reward = reward.total
+        obs.done = done
+        obs.metadata = {
+            **info,
+            "reward_breakdown": reward.model_dump(),
+        }
+        return obs
+
+    @property
+    def state(self) -> Any:  # type: ignore[override]
+        """SDK-compliant state property. Returns State with episode and step info."""
+        try:
+            return State(
+                episode_id=self.task_id,
+                step_count=self._step_count,
+            )
+        except Exception:
+            return {"episode_id": self.task_id, "step_count": self._step_count}
+
+    def _full_state(self) -> dict[str, Any]:
+        """Rich internal state dict — used by graders, Gradio demo, and /state HTTP endpoint."""
         return {
             "task_id": self.task_id, "step": self._step_count, "done": self._done,
             "tax_rate": self.tax_rate, "ubi_amount": self.ubi_amount,
@@ -577,6 +624,8 @@ class SocialContractOpenEnv:
         )
 
     def _gini(self) -> float:
+        if not self.citizen_groups:
+            return 0.0
         all_w = np.concatenate([g.wealth for g in self.citizen_groups])
         all_w = np.sort(all_w)
         n = len(all_w)

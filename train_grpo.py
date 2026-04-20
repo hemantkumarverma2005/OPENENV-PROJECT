@@ -95,8 +95,8 @@ def generate_training_prompts(n_prompts: int = 100) -> list[dict]:
                     minimum_wage_delta=float(rng.uniform(-0.5, 0.5)),
                     reasoning="warmup",
                 )
-                obs, _, done, _ = env.step(action)
-                if done:
+                obs = env.step(action)
+                if obs.done:
                     break
 
             if not env.is_done:
@@ -189,14 +189,14 @@ def compute_environment_reward(
                 minimum_wage_delta=float(rng.uniform(-0.5, 0.5)),
                 reasoning="warmup",
             )
-            obs, _, done, _ = env.step(warmup_action)
-            if done:
+            obs = env.step(warmup_action)
+            if obs.done:
                 return 0.0
 
         # Apply the LLM's action
-        obs, reward, done, info = env.step(action)
+        obs = env.step(action)
 
-        if done:
+        if obs.done:
             grade = run_grader(task_id, env._history)
             return grade["score"]
 
@@ -214,7 +214,7 @@ def compute_environment_reward(
                 minimum_wage_delta=action.minimum_wage_delta * 0.3,
                 reasoning="heuristic follow-through",
             )
-            obs, _, done, _ = env.step(heuristic)
+            obs = env.step(heuristic)
 
         grade = run_grader(task_id, env._history)
         return grade["score"]
@@ -298,7 +298,7 @@ def evaluate_model(model, tokenizer, tasks=None, seeds=None):
                         minimum_wage_delta=0.0, reasoning="parse failure fallback",
                     )
 
-                obs, reward, done, info = env.step(action)
+                obs = env.step(action)
 
             grade = run_grader(task_id, env._history)
             task_scores.append(grade["score"])

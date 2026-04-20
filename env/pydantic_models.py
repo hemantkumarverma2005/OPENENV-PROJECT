@@ -2,6 +2,7 @@
 pydantic_models.py
 ──────────────────
 Typed Observation, Action, and Reward models per OpenEnv spec.
+Now inheriting from openenv-core SDK base types for full platform integration.
 
 Action space: 8 policy levers reflecting the full real-world toolkit:
   1. Fiscal:    tax_delta, ubi_delta, public_good_delta, stimulus_package
@@ -13,8 +14,14 @@ Action space: 8 policy levers reflecting the full real-world toolkit:
 from pydantic import BaseModel, Field
 from typing import Optional
 
+try:
+    from openenv.core.env_server.types import Action, Observation
+except ImportError:  # pragma: no cover — fallback if SDK not installed
+    Action = BaseModel
+    Observation = BaseModel
 
-class EconomicObservation(BaseModel):
+
+class EconomicObservation(Observation):  # type: ignore[misc]
     """Full snapshot of the economy the LLM agent sees each step."""
 
     step: int = Field(..., description="Current step number (0-indexed)")
@@ -133,7 +140,7 @@ Respond ONLY with valid JSON in this exact format:
 """.strip()
 
 
-class PolicyAction(BaseModel):
+class PolicyAction(Action):  # type: ignore[misc]
     """Policy adjustment action from the LLM agent — 8 policy levers."""
     # ── Fiscal policy ─────────────────────────────────────────────────────
     tax_delta: float = Field(..., ge=-0.10, le=0.10,

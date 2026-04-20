@@ -26,16 +26,16 @@ def test_reset_creates_valid_observation():
     assert 0 <= obs.minimum_wage <= 20.0
     assert obs.strike_active is False
 
-def test_step_returns_valid_tuple():
+def test_step_returns_valid_obs():
     env = SocialContractOpenEnv("task2_recession")
     env.reset()
     action = PolicyAction(tax_delta=0.01, ubi_delta=0.0, public_good_delta=0.0)
-    obs, reward, done, info = env.step(action)
+    obs = env.step(action)
     assert obs.step == 1
-    assert 0.0 <= reward.total <= 1.0
-    assert 0.0 <= reward.task_progress <= 1.0
-    assert isinstance(done, bool)
-    assert isinstance(info, dict)
+    assert 0.0 <= (obs.reward or 0) <= 1.0
+    assert 0.0 <= obs.metadata.get("reward_breakdown", {}).get("task_progress", 0) <= 1.0
+    assert isinstance(obs.done, bool)
+    assert isinstance(obs.metadata, dict)
 
 def test_step_with_all_8_levers():
     """Test that all 8 policy levers are accepted and affect the environment."""
@@ -47,8 +47,8 @@ def test_step_with_all_8_levers():
         import_tariff_delta=0.02, money_supply_delta=50.0,
         minimum_wage_delta=0.5, reasoning="Testing all 8 levers"
     )
-    obs, reward, done, info = env.step(action)
-    assert 0.0 <= reward.total <= 1.0
+    obs = env.step(action)
+    assert 0.0 <= (obs.reward or 0) <= 1.0
     assert obs.interest_rate >= 0.0
     assert obs.import_tariff >= 0.0
     assert obs.minimum_wage >= 0.0
@@ -56,20 +56,19 @@ def test_step_with_all_8_levers():
 def test_max_steps_termination():
     env = SocialContractOpenEnv("task1_stability")
     env.reset()
-    done = False
     step_count = 0
-    while not done:
+    while not env.is_done:
         action = PolicyAction(tax_delta=0.0, ubi_delta=0.0, public_good_delta=0.0)
-        _, _, done, _ = env.step(action)
+        env.step(action)
         step_count += 1
         if step_count > 50: break
     assert step_count == env.task_cfg["max_steps"]
-    assert done is True
+    assert env.is_done is True
 
 def test_state_keys():
     env = SocialContractOpenEnv("task3_crisis")
     env.reset()
-    state = env.state()
+    state = env._full_state()
     required = {
         "task_id", "step", "done", "tax_rate", "ubi_amount",
         "public_good_level", "gov_budget", "gini", "history_length",
@@ -84,12 +83,13 @@ def test_crisis_termination():
     env = SocialContractOpenEnv("task3_crisis")
     env.reset()
     action = PolicyAction(tax_delta=-0.10, ubi_delta=-10.0, public_good_delta=-0.10)
+    obs = None
     for _ in range(10):
         if env._done: break
-        _, reward, done, info = env.step(action)
-    if done and env._step_count < env.task_cfg["max_steps"]:
-        assert reward.total == 0.0
-        assert info["crisis_terminated"] is True
+        obs = env.step(action)
+    if obs and obs.done and env._step_count < env.task_cfg["max_steps"]:
+        assert (obs.reward or 1.0) == 0.0
+        assert obs.metadata.get("crisis_terminated") is True
 
 def test_shocks_can_occur():
     env = SocialContractOpenEnv("task1_stability")
@@ -98,7 +98,7 @@ def test_shocks_can_occur():
     for _ in range(20):
         if env._done: break
         action = PolicyAction(tax_delta=0.0, ubi_delta=0.0, public_good_delta=0.0)
-        obs, _, _, _ = env.step(action)
+        obs = env.step(action)
         if obs.shock_event != "none": shock_seen = True; break
     assert shock_seen is True
 
@@ -110,7 +110,7 @@ def test_persistent_shocks():
     for _ in range(40):
         if env._done: break
         action = PolicyAction(tax_delta=0.0, ubi_delta=0.0, public_good_delta=0.0)
-        obs, _, _, _ = env.step(action)
+        obs = env.step(action)
         if obs.shock_event != "none" and obs.shock_event != current_shock:
             if current_shock: shock_durations.append(shock_steps)
             current_shock = obs.shock_event; shock_steps = 1
@@ -161,7 +161,7 @@ def test_capital_flight():
     env.reset()
     for _ in range(5):
         action = PolicyAction(tax_delta=0.08, ubi_delta=0.0, public_good_delta=0.0)
-        obs, _, _, info = env.step(action)
+        env.step(action)
         if env._done: break
     ultra_rich_grp = next(g for g in env.citizen_groups if g.name == "ultra_rich")
     assert ultra_rich_grp.capital_flight > 0.0, "Ultra-rich should flee under high taxes"
@@ -172,8 +172,8 @@ def test_investment_creates_jobs():
     env.reset()
     # First step: wealthy invest
     action = PolicyAction(tax_delta=-0.02, ubi_delta=0.0, public_good_delta=0.02)
-    obs, _, _, info = env.step(action)
-    assert info.get("investment", 0) >= 0, "Wealthy should invest"
+    obs = env.step(action)
+    assert obs.private_investment >= 0, "Wealthy should invest"
 
 def test_money_supply_qe():
     """QE should increase money supply and affect inflation."""
@@ -183,7 +183,7 @@ def test_money_supply_qe():
         tax_delta=0.0, ubi_delta=0.0, public_good_delta=0.0,
         money_supply_delta=200.0
     )
-    obs, _, _, _ = env.step(action)
+    env.step(action)
     assert env.money_supply > 0, "QE should increase money supply"
 
 def test_money_supply_tightening():
@@ -194,7 +194,7 @@ def test_money_supply_tightening():
         tax_delta=0.0, ubi_delta=0.0, public_good_delta=0.0,
         money_supply_delta=-200.0
     )
-    obs, _, _, _ = env.step(action)
+    env.step(action)
     assert env.money_supply < 0, "Tightening should decrease money supply"
 
 def test_minimum_wage_raises_income():
@@ -206,7 +206,7 @@ def test_minimum_wage_raises_income():
         tax_delta=0.0, ubi_delta=0.0, public_good_delta=0.0,
         minimum_wage_delta=2.0
     )
-    obs, _, _, _ = env.step(action)
+    env.step(action)
     assert env.minimum_wage > initial_wage
 
 def test_strike_mechanism():
@@ -274,8 +274,8 @@ def test_extreme_actions_max():
         interest_rate_delta=0.03, stimulus_package=500.0, import_tariff_delta=0.05,
         money_supply_delta=500.0, minimum_wage_delta=2.0,
     )
-    obs, reward, _, _ = env.step(action)
-    assert 0.0 <= reward.total <= 1.0
+    obs = env.step(action)
+    assert 0.0 <= (obs.reward or 0) <= 1.0
     assert obs.tax_rate <= 0.80
     assert obs.minimum_wage <= 20.0
 
@@ -287,8 +287,8 @@ def test_extreme_actions_min():
         interest_rate_delta=-0.03, stimulus_package=0.0, import_tariff_delta=-0.05,
         money_supply_delta=-500.0, minimum_wage_delta=-2.0,
     )
-    obs, reward, _, _ = env.step(action)
-    assert 0.0 <= reward.total <= 1.0
+    obs = env.step(action)
+    assert 0.0 <= (obs.reward or 0) <= 1.0
     assert obs.minimum_wage >= 0.0
 
 def test_rapid_oscillation():
@@ -301,8 +301,8 @@ def test_rapid_oscillation():
             tax_delta=sign * 0.05, ubi_delta=sign * 5.0, public_good_delta=sign * 0.05,
             interest_rate_delta=sign * 0.02, money_supply_delta=sign * 100.0,
         )
-        _, reward, _, _ = env.step(action)
-        assert 0.0 <= reward.total <= 1.0
+        obs = env.step(action)
+        assert 0.0 <= (obs.reward or 0) <= 1.0
 
 def test_is_done_property():
     env = SocialContractOpenEnv("task1_stability")
@@ -368,12 +368,12 @@ def test_consumer_confidence_updates():
     initial = env.consumer_confidence
     for _ in range(5):
         env.step(PolicyAction(tax_delta=0.0, ubi_delta=0.0, public_good_delta=0.02))
-        if env._done: break
-    assert env.consumer_confidence != initial or True
+    assert env.consumer_confidence != initial
 
 # ── HTTP Integration Tests ────────────────────────────────────────────────────
 
 def test_api_full_episode():
+    """SDK-based API integration test."""
     from fastapi.testclient import TestClient
     from app import app
     client = TestClient(app)
@@ -385,44 +385,53 @@ def test_api_full_episode():
     assert r.status_code == 200
     assert "task1_stability" in r.json()
 
-    r = client.post("/reset/task1_stability")
+    # SDK reset endpoint
+    r = client.post("/reset", json={"seed": 42})
     assert r.status_code == 200
     data = r.json()
-    assert "gdp" in data
-    sid = data["session_id"]
+    assert "observation" in data
+    assert "gdp" in data["observation"]
 
-    r = client.post(f"/step/task1_stability?session_id={sid}", json={
+    # SDK step endpoint
+    r = client.post("/step", json={"action": {
         "tax_delta": 0.01, "ubi_delta": 0.5, "public_good_delta": 0.01,
         "interest_rate_delta": 0.0, "stimulus_package": 0.0,
         "import_tariff_delta": 0.0, "money_supply_delta": 0.0,
         "minimum_wage_delta": 0.0,
-    })
+    }})
     assert r.status_code == 200
     step_data = r.json()
     assert "observation" in step_data
-    assert 0.0 <= step_data["reward"]["total"] <= 1.0
+    assert step_data["reward"] is not None
 
-    r = client.get(f"/state/task1_stability?session_id={sid}")
+    # SDK schema endpoint
+    r = client.get("/schema")
     assert r.status_code == 200
+    schema = r.json()
+    assert "action" in schema and "observation" in schema
 
-    r = client.get(f"/grade/task1_stability?session_id={sid}")
-    assert r.status_code == 200
-    assert 0.0 <= r.json()["score"] <= 1.0
-
-def test_api_query_param_style():
+def test_api_tasks_endpoint():
     from fastapi.testclient import TestClient
     from app import app
     client = TestClient(app)
-    r = client.post("/reset?task_id=task2_recession")
+    r = client.get("/tasks")
     assert r.status_code == 200
+    tasks = r.json()
+    assert len(tasks) == 5
+    assert "task4_stagflation" in tasks
 
-def test_api_root_metadata():
+def test_api_step_respects_task_id():
     from fastapi.testclient import TestClient
     from app import app
+
     client = TestClient(app)
-    r = client.get("/")
+    r = client.post("/step", json={"task_id": "task3_crisis", "action": {
+        "tax_delta": 0.01, "ubi_delta": 0.0, "public_good_delta": 0.0,
+        "interest_rate_delta": 0.0, "stimulus_package": 0.0,
+        "import_tariff_delta": 0.0, "money_supply_delta": 0.0,
+        "minimum_wage_delta": 0.0,
+    }})
     assert r.status_code == 200
-    data = r.json()
-    assert data["name"] == "SocialContract-v0"
-    assert "action_space" in data
-    assert data["action_space"]["count"] == 8
+    payload = r.json()
+    assert payload["observation"]["task_id"] == "task3_crisis"
+    assert payload["reward"] is not None

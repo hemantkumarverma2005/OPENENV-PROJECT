@@ -5,7 +5,6 @@ No API key or server required — runs fully locally.
 Also demonstrates multi-seed generalization testing.
 """
 import sys, io
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 import os
 sys.path.insert(0, os.path.dirname(__file__))
@@ -140,8 +139,8 @@ def run_task_demo(task_id: str, seed: int = 42) -> dict:
     total_reward = 0.0
     while not env.is_done:
         action = smart_policy(obs)
-        obs, reward, done, info = env.step(action)
-        total_reward += reward.total
+        obs = env.step(action)
+        total_reward += obs.reward or 0.0
     grade = run_grader(task_id, env._history)
     return {
         "steps": env._step_count, "total_reward": round(total_reward, 4),
@@ -166,13 +165,15 @@ def run_random_baseline(task_id: str, seed: int = 42) -> dict:
             minimum_wage_delta=float(rng.uniform(-1.0, 1.0)),
             reasoning="random baseline",
         )
-        _, reward, _, _ = env.step(action)
-        total_reward += reward.total
+        obs = env.step(action)
+        total_reward += obs.reward or 0.0
     grade = run_grader(task_id, env._history)
     return {"score": grade["score"], "verdict": grade["verdict"]}
 
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     print("\n" + "=" * 70)
     print("  SocialContract-v0  —  Offline Evaluation Demo")
     print("  8-lever task-aware smart policy vs random baseline")

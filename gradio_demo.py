@@ -15,12 +15,11 @@ Usage:
 
 import os
 import sys
-import io
 import json
 import base64
 import numpy as np
+import io
 
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 sys.path.insert(0, os.path.dirname(__file__))
 
 import matplotlib
@@ -99,10 +98,10 @@ def step_env():
     )
     explanations = explain_action(action, state.obs)
 
-    state.obs, reward, done, info = state.env.step(action)
+    state.obs = state.env.step(action)
     state.step_count += 1
-    state.done = done
-    state.history.append(info)
+    state.done = state.obs.done
+    state.history.append(state.obs.metadata)
 
     # Build explanation text
     explanation_text = (
@@ -127,11 +126,11 @@ def step_env():
 
     explanation_text += (
         f"\n--- Reward ---\n"
-        f"Step Reward: {reward.total:.4f} | "
-        f"Task Progress: {reward.task_progress:.4f}"
+        f"Step Reward: {state.obs.reward:.4f} | "
+        f"Task Progress: {state.obs.metadata.get('reward_breakdown', {}).get('task_progress', 0):.4f}"
     )
 
-    if done:
+    if state.obs.done:
         grade = run_grader(state.task_id, state.env._history)
         explanation_text += (
             f"\n\n=== EPISODE COMPLETE ===\n"
@@ -139,7 +138,7 @@ def step_env():
             f"Verdict: {grade['verdict']}"
         )
 
-    status = f"Step {state.step_count} | Reward: {reward.total:.3f}" + (" | DONE" if done else "")
+    status = f"Step {state.step_count} | Reward: {state.obs.reward:.3f}" + (" | DONE" if state.obs.done else "")
 
     return explanation_text, generate_dashboard_image(), status
 
@@ -306,5 +305,7 @@ def build_interface():
 
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     demo = build_interface()
     demo.launch(server_name="0.0.0.0", server_port=7861, share=False)

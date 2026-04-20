@@ -286,7 +286,7 @@ def run_explained_episode(task_id: str, seed: int = 42) -> dict:
             print(f"    > {exp}")
 
         prev_obs = obs
-        obs, reward, done, info = env.step(action)
+        obs = env.step(action)
 
     grade = run_grader(task_id, env._history)
 

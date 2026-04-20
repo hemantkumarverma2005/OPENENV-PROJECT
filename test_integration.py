@@ -21,8 +21,8 @@ def test_market_agent():
         import_tariff_delta=0.0, money_supply_delta=0,
         minimum_wage_delta=0, reasoning="test",
     )
-    obs, r, d, info = env.step(a)
-    mr = info["market_response"]
+    obs = env.step(a)
+    mr = obs.metadata.get("market_response")
     assert mr is not None
     print(f"[PASS] Market agent: confidence={mr['market_confidence']:.3f}, "
           f"attack={mr.get('attack_triggered', False)}")
@@ -62,7 +62,7 @@ def test_full_episode_with_features():
     obs = env.reset()
     while not env.is_done:
         action = smart_policy(obs)
-        obs, r, d, info = env.step(action)
+        obs = env.step(action)
     grade = run_grader("task4_stagflation", env._history)
     print(f"[PASS] Full episode with market agent: score={grade['score']:.4f}")
 
