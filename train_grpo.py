@@ -274,20 +274,22 @@ def evaluate_model(model, tokenizer, tasks=None, seeds=None):
                 ]
 
                 # Tokenize and generate
-                inputs = tokenizer.apply_chat_template(
-                    messages, return_tensors="pt", add_generation_prompt=True
-                ).to(model.device)
+                text_input = tokenizer.apply_chat_template(
+                    messages, tokenize=False, add_generation_prompt=True
+                )
+                inputs = tokenizer(text_input, return_tensors="pt").to(model.device)
+                input_len = inputs["input_ids"].shape[1]
 
                 with torch.no_grad():
                     outputs = model.generate(
-                        inputs,
+                        **inputs,
                         max_new_tokens=256,
                         temperature=0.1,
                         do_sample=True,
                         pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id,
                     )
 
-                response = tokenizer.decode(outputs[0][inputs.shape[1]:], skip_special_tokens=True)
+                response = tokenizer.decode(outputs[0][input_len:], skip_special_tokens=True)
                 action = parse_action_from_text(response)
 
                 if action is None:
