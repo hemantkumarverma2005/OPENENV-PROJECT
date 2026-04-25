@@ -32,8 +32,22 @@ from env.pydantic_models import EconomicObservation, PolicyAction, StepReward
 from env.market_agent import MarketConsortium
 from env.curriculum import AdaptiveCurriculum, DifficultyConfig, DIFFICULTY_LEVELS
 
-from openenv.core.env_server.interfaces import Environment as _SDKEnvironment
-from openenv.core.env_server.types import State
+try:
+    from openenv.core.env_server.interfaces import Environment as _SDKEnvironment
+    from openenv.core.env_server.types import State
+except ImportError:
+    # Training-only fallback: SDK not needed for local simulation (GRPO training).
+    # Production server (app.py) WILL fail without SDK — that's intentional.
+    import warnings
+    warnings.warn(
+        "openenv-core not installed — running in training-only mode. "
+        "Install openenv-core for production server.",
+        stacklevel=2,
+    )
+    _SDKEnvironment = object
+    class State:
+        def __init__(self, **kwargs):
+            self.__dict__.update(kwargs)
 
 MAX_STEPS   = 40
 MAX_BUDGET  = 5000.0

@@ -35,20 +35,21 @@ from graders.graders import run_grader
 # ── Configuration ────────────────────────────────────────────────────────────
 
 TRAINING_CONFIG = {
-    "model_name": "unsloth/Qwen2.5-1.5B-Instruct",  # Small enough for T4
-    "max_seq_length": 2048,
-    "lora_r": 16,
-    "lora_alpha": 32,
-    "num_train_epochs": 2,
+    "model_name": "unsloth/Qwen2.5-7B-Instruct",   # 7B — strong reasoning, fits A100 80GB in 4-bit
+    "max_seq_length": 3072,
+    "lora_r": 32,                # Higher rank = more expressiveness
+    "lora_alpha": 64,
+    "num_train_epochs": 3,
     "per_device_train_batch_size": 2,
     "gradient_accumulation_steps": 4,
-    "learning_rate": 5e-5,
-    "num_generations": 4,        # GRPO: generate N completions per prompt
-    "max_new_tokens": 256,
-    "training_tasks": ["task1_stability", "task2_recession", "task4_stagflation"],
-    "seeds": [42, 99, 7],
-    "max_training_steps": 200,    # Enough to show improvement
-    "save_dir": "./checkpoints/socialcontract-grpo",
+    "learning_rate": 2e-5,       # Lower LR for larger model stability
+    "num_generations": 6,        # GRPO: generate N completions per prompt (more = better signal)
+    "max_new_tokens": 384,
+    "training_tasks": ["task1_stability", "task2_recession", "task3_crisis",
+                       "task4_stagflation", "task5_pandemic"],  # ALL 5 tasks
+    "seeds": [42, 99, 7, 13, 55],
+    "max_training_steps": 500,    # 2.5x more training for convergence
+    "save_dir": "./checkpoints/socialcontract-grpo-7b",
     "log_file": "./training_log.jsonl",
 }
 
@@ -63,7 +64,7 @@ SYSTEM_PROMPT = (
 )
 
 
-def generate_training_prompts(n_prompts: int = 100) -> list[dict]:
+def generate_training_prompts(n_prompts: int = 200) -> list[dict]:
     """
     Generate diverse training prompts by running partial episodes.
     Each prompt captures a unique economic state the agent must respond to.
@@ -361,7 +362,7 @@ def main():
 
     # ── Step 3: Create training dataset ──────────────────────────────────
     print("\n[3/5] Generating training prompts...")
-    dataset = create_training_dataset(n_prompts=100)
+    dataset = create_training_dataset(n_prompts=200)
     print(f"  Created {len(dataset)} training prompts across "
           f"{len(TRAINING_CONFIG['training_tasks'])} tasks")
 
