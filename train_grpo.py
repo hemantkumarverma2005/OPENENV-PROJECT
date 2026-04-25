@@ -41,7 +41,7 @@ TRAINING_CONFIG = {
     "lora_alpha": 64,
     "num_train_epochs": 3,
     "per_device_train_batch_size": 2,
-    "gradient_accumulation_steps": 4,
+    "gradient_accumulation_steps": 3,
     "learning_rate": 2e-5,       # Lower LR for larger model stability
     "num_generations": 6,        # GRPO: generate N completions per prompt (more = better signal)
     "max_new_tokens": 384,
@@ -409,7 +409,8 @@ def main():
         save_steps=50,
         max_steps=TRAINING_CONFIG["max_training_steps"],
         report_to="none",
-        bf16=torch.cuda.is_available(),
+        bf16=torch.cuda.is_bf16_supported(),
+        fp16=not torch.cuda.is_bf16_supported(),
         temperature=0.7,
     )
 
