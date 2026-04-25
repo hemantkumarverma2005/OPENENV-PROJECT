@@ -277,12 +277,15 @@ def evaluate_model(model, tokenizer, tasks=None, seeds=None):
                 text_input = tokenizer.apply_chat_template(
                     messages, tokenize=False, add_generation_prompt=True
                 )
-                inputs = tokenizer(text_input, return_tensors="pt").to(model.device)
+                inputs = tokenizer(text_input, return_tensors="pt")
+                device = next(model.parameters()).device
+                inputs = {k: v.to(device) for k, v in inputs.items()}
                 input_len = inputs["input_ids"].shape[1]
 
                 with torch.no_grad():
                     outputs = model.generate(
-                        **inputs,
+                        input_ids=inputs["input_ids"],
+                        attention_mask=inputs["attention_mask"],
                         max_new_tokens=256,
                         temperature=0.1,
                         do_sample=True,
@@ -341,6 +344,7 @@ def main():
         quantization_config=bnb_config,
         device_map="auto",
         torch_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16,
+        attn_implementation="eager",
     )
 
     tokenizer = AutoTokenizer.from_pretrained(TRAINING_CONFIG["model_name"])
@@ -358,7 +362,8 @@ def main():
     )
 
     model = get_peft_model(model, lora_config)
-    model.gradient_checkpointing_enable()
+    model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+    model.config.use_cache = False
 
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
