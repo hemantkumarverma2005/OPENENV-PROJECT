@@ -1,11 +1,11 @@
 """
 train_grpo.py — Minimal GRPO Training Script for SocialContract-v0
 ═══════════════════════════════════════════════════════════════════
-Uses HuggingFace TRL's GRPOTrainer + Unsloth for efficient fine-tuning.
-Designed to run on Colab (T4 GPU) or with HuggingFace compute credits.
+Uses HuggingFace TRL's GRPOTrainer + PEFT for efficient LoRA fine-tuning.
+Designed to run on Colab or with HuggingFace compute credits (A100/A10G).
 
 Usage (local):
-    pip install unsloth trl datasets transformers accelerate
+    pip install trl datasets transformers accelerate peft bitsandbytes
     python train_grpo.py
 
 Usage (Colab — see train_colab.ipynb):
@@ -35,7 +35,7 @@ from graders.graders import run_grader
 # ── Configuration ────────────────────────────────────────────────────────────
 
 TRAINING_CONFIG = {
-    "model_name": "unsloth/Qwen2.5-7B-Instruct",   # 7B — strong reasoning, fits A100 80GB in 4-bit
+    "model_name": "Qwen/Qwen2.5-7B-Instruct",   # 7B — strong reasoning, fits A100 80GB in 4-bit
     "max_seq_length": 3072,
     "lora_r": 32,                # Higher rank = more expressiveness
     "lora_alpha": 64,
@@ -319,30 +319,44 @@ def evaluate_model(model, tokenizer, tasks=None, seeds=None):
 
 def main():
     print("=" * 70)
-    print("  SocialContract-v0 — GRPO Training with Unsloth + TRL")
+    print("  SocialContract-v0 — GRPO Training with PEFT + TRL")
     print("=" * 70)
 
-    # ── Step 1: Load model with Unsloth ──────────────────────────────────
-    print("\n[1/5] Loading model with Unsloth...")
-    from unsloth import FastLanguageModel
+    # ── Step 1: Load model with PEFT + BitsAndBytes ──────────────────────
+    print("\n[1/5] Loading model with PEFT + BitsAndBytes...")
+    from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+    from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
-    model, tokenizer = FastLanguageModel.from_pretrained(
-        model_name=TRAINING_CONFIG["model_name"],
-        max_seq_length=TRAINING_CONFIG["max_seq_length"],
-        dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16,
+    bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
+        bnb_4bit_quant_type="nf4",
+        bnb_4bit_compute_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16,
+        bnb_4bit_use_double_quant=True,
     )
 
-    model = FastLanguageModel.get_peft_model(
-        model,
+    model = AutoModelForCausalLM.from_pretrained(
+        TRAINING_CONFIG["model_name"],
+        quantization_config=bnb_config,
+        device_map="auto",
+        torch_dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16,
+    )
+
+    tokenizer = AutoTokenizer.from_pretrained(TRAINING_CONFIG["model_name"])
+
+    model = prepare_model_for_kbit_training(model)
+
+    lora_config = LoraConfig(
         r=TRAINING_CONFIG["lora_r"],
+        lora_alpha=TRAINING_CONFIG["lora_alpha"],
         target_modules=["q_proj", "k_proj", "v_proj", "o_proj",
                          "gate_proj", "up_proj", "down_proj"],
-        lora_alpha=TRAINING_CONFIG["lora_alpha"],
         lora_dropout=0.0,
         bias="none",
-        use_gradient_checkpointing="unsloth",
+        task_type="CAUSAL_LM",
     )
+
+    model = get_peft_model(model, lora_config)
+    model.gradient_checkpointing_enable()
 
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
