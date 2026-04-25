@@ -329,7 +329,7 @@ def main():
     model, tokenizer = FastLanguageModel.from_pretrained(
         model_name=TRAINING_CONFIG["model_name"],
         max_seq_length=TRAINING_CONFIG["max_seq_length"],
-        dtype=None,  # Auto-detect
+        dtype=torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16,
         load_in_4bit=True,
     )
 
