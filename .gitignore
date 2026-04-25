@@ -25,3 +25,5 @@ MANIFEST
 .pytest_cache/
 .coverage
 htmlcov/
+TLDB_*.pdf
+scripts/

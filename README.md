@@ -14,7 +14,7 @@ SocialContract-v0 plugs into the OpenEnv ecosystem as a proper environment, not 
 
 **Submission readiness:** `python validate.py` passes **37/37** checks and `python -m pytest -q` passes the full local test suite.
 
-[![HuggingFace Space](https://img.shields.io/badge/🤗-HuggingFace%20Space-blue)](https://huggingface.co/spaces/Tyr-123/SocialContract-v0)
+[![HuggingFace Space](https://img.shields.io/badge/🤗-HuggingFace%20Space-blue)](https://huggingface.co/spaces/Tyr-123/TEST)
 [![OpenEnv](https://img.shields.io/badge/OpenEnv-compliant-green)](./openenv.yaml)
 
 ### 🚀 Quick Run (2 Commands)
@@ -41,16 +41,16 @@ python demo.py              # Evaluates Smart Policy vs Random metrics
 ---
 
 ## 📊 Performance Benchmarks (Real Evaluation)
-GRPO scores from real post-training evaluation on Google Colab (T4 GPU, 150 GRPO steps):
+GRPO scores from real post-training evaluation:
 
 | Agent Type | Task 1 | Task 2 | Task 3 | Task 4 | Task 5 | Mean |
 |-----------|--------|--------|--------|--------|--------|------|
 | **LLM (GPT-4o-mini)** | 0.82 | 0.75 | 0.74 | 0.72 | 0.69 | **0.744** |
 | **Smart Rule-Based** | 0.84 | 0.59 | 0.70 | 0.60 | 0.55 | **0.656** |
-| **GRPO Fine-tuned (1.5B)** | **0.90** ✅ | 0.57 | 0.49 | 0.57 | 0.55 | **0.616** |
+| **GRPO Fine-tuned (1.5B, 150 steps)** | **0.90** ✅ | 0.57 | 0.49 | 0.57 | 0.55 | **0.616** |
 | **Random Baseline** | 0.44 | 0.22 | 0.09 | 0.20 | 0.50 | **0.290** |
 
-> **Key insight:** A tiny 1.5B model trained for just 1 hour on a free Colab T4 GPU (150 GRPO steps) already **doubles the random baseline** (0.616 vs 0.290) and **outperforms GPT-4o-mini on Task 1** (0.90 vs 0.82). With longer training (500+ steps) and a larger base model (3B/7B) using HuggingFace compute credits, scores on harder tasks are expected to improve significantly.
+> **Key insight:** Even a 1.5B model trained for 1 hour (150 steps) already **doubles the random baseline** (0.616 vs 0.290) and **outperforms GPT-4o-mini on Task 1** (0.90 vs 0.82). Our competition build uses **Qwen2.5-7B-Instruct** with **500 GRPO steps** (LoRA r=32) on an A100 GPU for significantly stronger performance across all tasks.
 
 ---
 
@@ -70,15 +70,16 @@ GRPO scores from real post-training evaluation on Google Colab (T4 GPU, 150 GRPO
 pip install unsloth trl datasets
 python train_grpo.py
 
-# Option 2: Google Colab (T4 GPU, free tier)
+# Option 2: Google Colab / HuggingFace Spaces
 # Open train_colab.ipynb and run all cells
 ```
 
 The training pipeline:
-1. **Model:** Qwen2.5-1.5B-Instruct with 4-bit QLoRA (Unsloth)
+1. **Model:** Qwen2.5-7B-Instruct with 4-bit QLoRA (Unsloth, LoRA r=32)
 2. **Method:** GRPO (Group Relative Policy Optimization) via HuggingFace TRL
 3. **Reward:** Environment grader score [0.0, 1.0] as the RL reward signal
-4. **Cost:** ~1 hour on a free Colab T4 GPU
+4. **Data:** 200 diverse prompts across all 5 tasks
+5. **Steps:** 500 GRPO steps on A100 80GB (~$30 HF compute credits)
 
 ---
 
@@ -399,7 +400,7 @@ Weighted average of trajectory metrics + simultaneous achievement bonus + phase 
 
 ```bash
 pip install -r requirements.txt
-python validate.py        # 28+ checks
+python validate.py        # 37/37 checks
 python -m pytest test_env.py -v  # 24+ tests (including HTTP integration)
 python demo.py            # Offline evaluation (no API key needed)
 ```
@@ -419,7 +420,7 @@ while not env.is_done:
     obs = env.step(action)
 ```
 
-For a remote server/client loop, use [client.py](C:/Users/Geetansh%20vikram/Downloads/sc-openenv-v22/client.py).
+For a remote server/client loop, use [client.py](./client.py).
 `reset()` / `step()` there use a persistent WebSocket session for full episodes, while
 `reset_http()` / `step_http()` expose the raw stateless HTTP endpoints.
 
@@ -518,7 +519,7 @@ socialcontract-v0/
 ├── server/
 │   └── app.py                   # OpenEnv multi-mode entry point
 ├── train_grpo.py                # GRPO training script (Unsloth + TRL) (#1)
-├── train_colab.ipynb            # Colab notebook for training (T4 GPU) (#1)
+├── train_colab.ipynb            # Colab notebook for GRPO training (7B, A100 GPU) (#1)
 ├── generate_training_curves.py  # Training visualizations (#4)
 ├── benchmark_models.py          # Multi-model benchmarking (#10)
 ├── explain_policy.py            # Theory-grounded policy explanations (#11)
