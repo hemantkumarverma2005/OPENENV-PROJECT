@@ -240,7 +240,7 @@ def create_training_dataset(n_prompts: int = 100):
             {"role": "user", "content": p["prompt"]},
         ]
         dataset_entries.append({
-            "messages": messages,
+            "prompt": messages,
             "task_id": p["task_id"],
             "seed": p["seed"],
             "warmup_steps": p["warmup_steps"],
