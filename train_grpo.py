@@ -370,19 +370,18 @@ def main():
     print("\n[4/5] Starting GRPO training...")
     from trl import GRPOTrainer, GRPOConfig
 
+
     def reward_function(completions, **kwargs):
         """
         GRPO reward: run the environment step with parsed action,
         return the grader score as the reward signal.
         """
         rewards = []
-        # Access metadata from the batch
         task_ids = kwargs.get("task_id", ["task1_stability"] * len(completions))
         seeds_list = kwargs.get("seed", [42] * len(completions))
         warmups = kwargs.get("warmup_steps", [0] * len(completions))
 
         for i, completion in enumerate(completions):
-            # Extract text from completion
             if isinstance(completion, list):
                 text = completion[-1].get("content", "") if completion else ""
             else:
@@ -394,6 +393,20 @@ def main():
 
             r = compute_environment_reward(text, task_id, seed, warmup)
             rewards.append(r)
+
+            # Print live sample for every completion
+            action = parse_action_from_text(text)
+            if action:
+                action_json = json.dumps({
+                    "tax_delta": round(action.tax_delta, 3),
+                    "interest_rate_delta": round(action.interest_rate_delta, 3),
+                    "stimulus_package": round(action.stimulus_package, 1),
+                    "ubi_delta": round(action.ubi_delta, 2),
+                    "public_good_delta": round(action.public_good_delta, 3),
+                    "reasoning": (action.reasoning or "")[:80] + "...",
+                })
+                print(f"[Live Sample] Task: {task_id} | Grader Score: {r:.4f}")
+                print(f"  AI Decision -> {action_json}")
 
         return rewards
 
