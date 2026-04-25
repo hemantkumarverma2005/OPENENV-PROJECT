@@ -32,20 +32,15 @@ from env.pydantic_models import EconomicObservation, PolicyAction, StepReward
 from env.market_agent import MarketConsortium
 from env.curriculum import AdaptiveCurriculum, DifficultyConfig, DIFFICULTY_LEVELS
 
-try:
-    from openenv.core.env_server.interfaces import Environment as _SDKEnvironment
-    from openenv.core.env_server.types import State
-except ImportError:  # pragma: no cover — fallback if SDK not installed
-    _SDKEnvironment = object
-    class State:  # type: ignore
-        def __init__(self, **kwargs): pass
+from openenv.core.env_server.interfaces import Environment as _SDKEnvironment
+from openenv.core.env_server.types import State
 
 MAX_STEPS   = 40
 MAX_BUDGET  = 5000.0
 MAX_UBI     = 50.0
 
 
-class SocialContractOpenEnv(_SDKEnvironment):  # type: ignore[misc]
+class SocialContractOpenEnv(_SDKEnvironment):
     """
     OpenEnv-compliant Economic Policy Advisory Environment.
     Inherits from openenv-core SDK Environment base class.
