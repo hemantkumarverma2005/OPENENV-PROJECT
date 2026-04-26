@@ -148,7 +148,7 @@ def plot_reward_curves(data, output_path="training_curves.png"):
     fig.savefig(output_path, dpi=150, bbox_inches="tight",
                 facecolor=COLORS["bg"], edgecolor="none")
     plt.close()
-    print(f"  ✓ Saved: {output_path}")
+    print(f"  Saved: {output_path}")
 
 
 def plot_comparison_bar(output_path="score_comparison.png"):
@@ -166,7 +166,7 @@ def plot_comparison_bar(output_path="score_comparison.png"):
     random_scores =     [0.44, 0.22, 0.09, 0.20, 0.50]
     smart_scores =      [0.84, 0.59, 0.70, 0.60, 0.55]
     llm_api_scores =    [0.82, 0.75, 0.74, 0.72, 0.69]
-    post_train_scores = [0.90, 0.57, 0.49, 0.57, 0.55]  # Real GRPO eval (all 5 tasks verified)
+    post_train_scores = [0.911, 0.758, 0.564, 0.600, 0.550]  # Latest 7B / 500-step GRPO eval
 
     bars1 = ax.bar(x - 1.5*width, random_scores, width, label="Random",
                    color=COLORS["random"], alpha=0.85, edgecolor="white", linewidth=0.3)
@@ -211,7 +211,7 @@ def plot_comparison_bar(output_path="score_comparison.png"):
     fig.savefig(output_path, dpi=150, bbox_inches="tight",
                 facecolor=COLORS["bg"], edgecolor="none")
     plt.close()
-    print(f"  ✓ Saved: {output_path}")
+    print(f"  Saved: {output_path}")
 
 
 def plot_before_after_dashboard(output_path="before_after.png"):
