@@ -1,4 +1,4 @@
----
+﻿---
 title: SocialContract-v0
 emoji: ⚖️
 colorFrom: blue
@@ -6,25 +6,28 @@ colorTo: green
 sdk: docker
 pinned: false
 ---
-# 📊 SocialContract-v0 — Fiscal Policy Advisory Environment
+# SocialContract-v0 — Fiscal Policy Advisory Environment
 
 > **OpenEnv SDK-native** environment built on `openenv-core` using the standard `Environment` interface, typed `Action` / `Observation` models, `create_app()` server generation, `openenv.yaml`, and concurrent WebSocket sessions.
 
-SocialContract-v0 plugs into the OpenEnv ecosystem as a proper environment, not just an API-compatible wrapper. On top of that native SDK surface, it adds a much deeper economic simulation: **28 observation fields (mixed continuous/discrete), 8 simultaneous policy levers, 100 heterogeneous citizens, phase-aware graders, and a full GRPO training pipeline.**
+SocialContract-v0 is a macroeconomic decision-making environment where an LLM acts as a government policy advisor facing realistic tradeoffs across growth, inflation, unemployment, inequality, deficits, and social unrest. The agent receives a structured economic briefing, chooses adjustments across 8 policy levers, and is graded on whether it can stabilise or recover the economy across 5 task families inspired by real historical crises.
+
+The environment is designed around persistent, multi-step economic disruption rather than one-step toy transitions. It includes **28 observation fields, 8 simultaneous policy levers, 100 heterogeneous citizens, 5 calibrated tasks, 9 persistent exogenous shocks, phase-aware graders, and a full GRPO training/evaluation workflow**. The shock catalogue includes commodity price spikes, tech productivity booms, trade-war escalation, pandemic waves, foreign investment inflows, housing bubble crashes, energy subsidy cuts, pandemic lockdown waves, and supply-chain disruptions.
 
 **Submission readiness:** `python validate.py` passes **37/37** checks and `python -m pytest -q` passes the full local test suite.
 
 [![HuggingFace Space](https://img.shields.io/badge/🤗-HuggingFace%20Space-blue)](https://huggingface.co/spaces/Tyr-123/TEST)
+[![Trained Model](https://img.shields.io/badge/🤗-Trained%20Model-orange)](https://huggingface.co/Tyr-123/socialcontract-policy-7b-v1)
 [![OpenEnv](https://img.shields.io/badge/OpenEnv-compliant-green)](./openenv.yaml)
 
-### 🚀 Quick Run (2 Commands)
+### Quick Run (2 Commands)
 ```bash
 pip install -r requirements.txt
 python demo.py
 ```
 *Note: `demo.py` automatically evaluates the agents and generates a visual trajectory image (`dashboard.png` or `dashboard.generated.png` if the original file is locked).*
 
-### ⏱️ Verify in 3 Minutes
+### Verify in 3 Minutes
 ```bash
 pip install -r requirements.txt
 python validate.py          # 37/37 OpenEnv tests
@@ -34,14 +37,14 @@ python demo.py              # Evaluates Smart Policy vs Random metrics
 
 ---
 
-## 🏆 The David vs. Goliath Moment: Beating GPT-4o-mini
+## Benchmark Highlights
 
 Our defining achievement is proving that a small, locally-hosted open-weights model can **outperform a massive proprietary LLM** like GPT-4o-mini through targeted RL fine-tuning.
 
 ![Score Comparison](./score_comparison.png)
 *Our GRPO fine-tuned 7B model taking down GPT-4o-mini on complex economic stability tasks (0.91 vs 0.82).*
 
-### 📊 Benchmark Results
+### Benchmark Results
 
 | Agent Type | Task 1 (Stability) | Task 2 | Task 3 | Task 4 | Task 5 | Mean |
 |-----------|--------|--------|--------|--------|--------|------|
@@ -54,7 +57,7 @@ Our defining achievement is proving that a small, locally-hosted open-weights mo
 
 ---
 
-## 🧠 Training Pipeline (GRPO + Unsloth)
+## Training Pipeline (GRPO + Hugging Face TRL)
 
 ### Training Reward Curves
 ![Training Curves](./training_curves.png)
@@ -67,23 +70,25 @@ Our defining achievement is proving that a small, locally-hosted open-weights mo
 ### Training Script (Colab-ready)
 ```bash
 # Option 1: Local (requires GPU)
-pip install unsloth trl datasets
+pip install -q trl datasets transformers accelerate peft bitsandbytes pydantic numpy matplotlib huggingface_hub
 python train_grpo.py
 
-# Option 2: Google Colab / HuggingFace Spaces
+# Option 2: Google Colab
 # Open train_colab.ipynb and run all cells
 ```
 
 The training pipeline:
-1. **Model:** Qwen2.5-7B-Instruct with 4-bit QLoRA (Unsloth, LoRA r=32)
+1. **Model:** Qwen2.5-7B-Instruct with 4-bit QLoRA and LoRA adapters
 2. **Method:** GRPO (Group Relative Policy Optimization) via HuggingFace TRL
 3. **Reward:** Environment grader score [0.0, 1.0] as the RL reward signal
 4. **Data:** 200 diverse prompts across all 5 tasks
 5. **Steps:** 500 GRPO steps on A100 80GB (~$30 HF compute credits)
 
+**Published trained model:** [Tyr-123/socialcontract-policy-7b-v1](https://huggingface.co/Tyr-123/socialcontract-policy-7b-v1)
+
 ---
 
-## 📸 Visual Trajectory Example
+## Visual Trajectory Example
 ![Dashboard Trajectory](./dashboard.png)
 *Task: task4_stagflation. Seed: 1337. Agent: Smart Rule-Based (8-lever). Chart demonstrates a successful 2-phase recovery (first containing inflation, then driving GDP and employment).*
 
@@ -102,7 +107,7 @@ To show that environment complexity is perfectly justified, we tracked how remov
 
 ---
 
-## 🎯 Real-World Task: Fiscal Policy Decision Support
+## Real-World Task: Fiscal Policy Decision Support
 
 This environment models the **fiscal policy recommendation task** performed daily by:
 
@@ -127,7 +132,7 @@ All task scenarios are calibrated to real economic events:
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -188,7 +193,7 @@ All task scenarios are calibrated to real economic events:
 
 ---
 
-## 🧑‍🤝‍🧑 Citizens Simulation
+## Citizens Simulation
 
 | Class | Count | Base Wealth | Key Traits |
 |-------|-------|-------------|------------|
@@ -209,11 +214,21 @@ Each citizen independently decides how much to work, earns income, pays taxes (w
 
 ### Exogenous Shocks (9 types, persistent)
 
-Commodity price spikes, tech booms, trade wars, pandemic waves, foreign investment, housing crashes, energy subsidy cuts, supply chain disruptions, and pandemic lockdown waves. **Shocks now persist for 2-5 steps** with diminishing effects, modelling real economic shock propagation.
+- **Commodity price spike** - Raises input and household energy costs, suppresses output, and increases inflationary pressure.
+- **Tech productivity boom** - Improves productive efficiency, supports GDP growth, and reduces inflation pressure through supply-side gains.
+- **Trade war escalation** - Introduces tariff frictions that weaken trade volumes, reduce growth, and raise domestic prices.
+- **Pandemic wave** - Simultaneously disrupts labor supply, demand, and business continuity, producing broad macroeconomic stress.
+- **Foreign investment inflow** - Temporarily strengthens growth and capital availability, but can widen inequality if gains are unevenly distributed.
+- **Housing bubble burst** - Destroys household wealth, weakens confidence, and transmits recessionary pressure through the financial system.
+- **Energy subsidy cut** - Increases cost-of-living pressure, raises inflation, and can trigger political dissatisfaction or unrest.
+- **Pandemic lockdown wave** - Represents a more severe recurring shutdown shock with sharp output losses and prolonged recovery drag.
+- **Supply chain disruption** - Creates production bottlenecks, delivery delays, and cost-push inflation across multiple sectors.
+
+**Shocks persist for 2-5 steps with diminishing effects**, modelling real economic shock propagation rather than one-step randomness.
 
 ---
 
-## 🎭 Multi-Agent Market Speculator (#8 — Theme #1 Alignment)
+## Multi-Agent Market Speculator (#8 — Theme #1 Alignment)
 
 The environment includes an **adversarial market consortium** of 3 heterogeneous agents that react to the policy advisor's decisions:
 
@@ -236,7 +251,7 @@ env = SocialContractOpenEnv("task4_stagflation", enable_market_agent=True)
 
 ---
 
-## 📈 Adaptive Curriculum Learning (#9 — Theme #4 Alignment)
+## Adaptive Curriculum Learning (#9 — Theme #4 Alignment)
 
 The environment supports **automatic difficulty scaling** across 5 levels:
 
@@ -257,7 +272,7 @@ env = SocialContractOpenEnv("task1_stability", enable_curriculum=True, difficult
 
 ---
 
-## 💡 Policy Explanation Feature (#11)
+## Policy Explanation Feature (#11)
 
 The agent's decisions are mapped to **economic theory** in natural language:
 
@@ -281,7 +296,7 @@ python explain_policy.py --task task4_stagflation --seed 42
 
 ---
 
-## 🎮 Interactive Gradio Demo (#7)
+## Interactive Gradio Demo (#7)
 
 A live interactive demo for judges:
 
@@ -300,7 +315,7 @@ Features:
 
 ---
 
-## 📐 Action & Observation Space
+## Action & Observation Space
 
 ### Observation (28 fields)
 
@@ -343,7 +358,7 @@ Features:
 
 ---
 
-## 📋 Tasks (5 tasks, easy → expert)
+## Tasks (5 tasks, easy → expert)
 
 ### Task 1 — Easy: Maintain Economic Stability
 - **Parallel:** Pre-2008 Ireland (fragile surplus economy)
@@ -374,7 +389,7 @@ Features:
 
 ---
 
-## 📊 Reward Function
+## Reward Function
 
 ### Step Reward (per step, normalised to [0.0, 1.0])
 
@@ -396,7 +411,7 @@ Weighted average of trajectory metrics + simultaneous achievement bonus + phase 
 
 ---
 
-## ✅ Pre-Submission Validation
+## Pre-Submission Validation
 
 ```bash
 pip install -r requirements.txt
@@ -407,7 +422,7 @@ python demo.py            # Offline evaluation (no API key needed)
 
 ---
 
-## 🚀 Environment Usage
+## Environment Usage
 
 ### Custom Agent Environment Loop
 
@@ -472,39 +487,39 @@ The SDK-backed routes come from `openenv-core`; `/tasks`, `/grade/{task_id}`, `/
 
 ---
 
-## 📚 Academic Inspiration
+## Academic Inspiration
 
 Core mechanisms draw inspiration from published economic theory:
 
 | Mechanism | Academic Reference | Year | Implementation |
 |-----------|-------------------|------|---------------|
-| **Phillips Curve** | Phillips, A.W., "The Relation Between Unemployment and the Rate of Change of Money Wage Rates in the UK", *Economica* | 1958 | `citizens.py:phillips_curve_inflation()` — NAIRU=4.5% |
-| **Okun's Law** | Okun, A., "Potential GNP: Its Measurement and Significance", *ASA* | 1962 | `citizens.py:okuns_law_gdp_effect()` — β=2.0 |
-| **Solow Growth** | Solow, R., "A Contribution to the Theory of Economic Growth", *QJE* | 1956 | Savings function s(r) = s₀ + α·r |
-| **Keynesian MPC** | Friedman, M., *A Theory of the Consumption Function* | 1957 | Class-specific MPC: poor=0.90, rich=0.15 |
-| **Taylor Rule** | Taylor, J.B., "Discretion vs Policy Rules in Practice", *CJE* | 1993 | Interest rate → inflation transmission |
-| **Laffer Curve** | Trabandt & Uhlig, "The Laffer Curve Revisited", *JME* | 2011 | Revenue = t·(1−t²)·base |
-| **Barro-Gordon** | Barro, R. & Gordon, D., "Rules, Discretion, and Reputation", *JME* | 1983 | Trust dynamics, policy credibility |
-| **Tax Compliance** | Allingham, M. & Sandmo, A., "Income Tax Evasion: A Theoretical Analysis", *JPubE* | 1972 | Evasion = f(tax_rate, detection, risk_aversion) |
-| **Capital Flight** | Collier, Hoeffler & Pattillo, "Capital Flight as Portfolio Choice", *WBER* | 2001 | Ultra-rich offshore wealth under high tax/low trust |
-| **Collective Action** | Olson, M., *The Logic of Collective Action* | 1965 | Strikes when satisfaction < 0.25 + trust < 0.6 |
-| **Cantillon Effect** | Cantillon, R., *Essai sur la Nature du Commerce* | 1755 | QE benefits wealthy first, erodes poor purchasing power |
-| **Min Wage Debate** | Card, D. & Krueger, A., "Minimum Wages and Employment", *AER* | 1994 | Income ↑ but employment ↓ for poor/middle |
-| **Stackelberg Game** | Von Stackelberg, H., *Market Structure and Equilibrium* | 1934 | Rich invest → poor respond with labor supply |
-| **Gini Coefficient** | Gini, C., *Variabilità e Mutabilità* | 1912 | Inequality measurement |
-| **Kuznets Curve** | Kuznets, S., "Economic Growth and Income Inequality", *AER* | 1955 | Inequality and development tradeoff |
+| **[Phillips curve](https://en.wikipedia.org/wiki/Phillips_curve)** | Phillips, A.W., "The Relation Between Unemployment and the Rate of Change of Money Wage Rates in the UK", *Economica* | 1958 | `citizens.py:phillips_curve_inflation()` — NAIRU=4.5% |
+| **[Okun's law](https://en.wikipedia.org/wiki/Okun%27s_law)** | Okun, A., "Potential GNP: Its Measurement and Significance", *ASA* | 1962 | `citizens.py:okuns_law_gdp_effect()` — β=2.0 |
+| **[Solow growth model](https://en.wikipedia.org/wiki/Solow%E2%80%93Swan_model)** | Solow, R., "A Contribution to the Theory of Economic Growth", *QJE* | 1956 | Savings function s(r) = s₀ + α·r |
+| **[Marginal propensity to consume](https://en.wikipedia.org/wiki/Marginal_propensity_to_consume)** | Friedman, M., *A Theory of the Consumption Function* | 1957 | Class-specific MPC: poor=0.90, rich=0.15 |
+| **[Taylor rule](https://en.wikipedia.org/wiki/Taylor_rule)** | Taylor, J.B., "Discretion vs Policy Rules in Practice", *CJE* | 1993 | Interest rate → inflation transmission |
+| **[Laffer curve](https://en.wikipedia.org/wiki/Laffer_curve)** | Trabandt & Uhlig, "The Laffer Curve Revisited", *JME* | 2011 | Revenue = t·(1−t²)·base |
+| **[Time inconsistency / Barro-Gordon](https://en.wikipedia.org/wiki/Time_inconsistency)** | Barro, R. & Gordon, D., "Rules, Discretion, and Reputation", *JME* | 1983 | Trust dynamics, policy credibility |
+| **[Tax evasion](https://en.wikipedia.org/wiki/Tax_evasion)** | Allingham, M. & Sandmo, A., "Income Tax Evasion: A Theoretical Analysis", *JPubE* | 1972 | Evasion = f(tax_rate, detection, risk_aversion) |
+| **[Capital flight](https://en.wikipedia.org/wiki/Capital_flight)** | Collier, Hoeffler & Pattillo, "Capital Flight as Portfolio Choice", *WBER* | 2001 | Ultra-rich offshore wealth under high tax/low trust |
+| **[Collective action problem](https://en.wikipedia.org/wiki/Collective_action_problem)** | Olson, M., *The Logic of Collective Action* | 1965 | Strikes when satisfaction < 0.25 + trust < 0.6 |
+| **[Cantillon effect](https://en.wikipedia.org/wiki/Richard_Cantillon#Monetary_theory)** | Cantillon, R., *Essai sur la Nature du Commerce* | 1755 | QE benefits wealthy first, erodes poor purchasing power |
+| **[Minimum wage](https://en.wikipedia.org/wiki/Minimum_wage)** | Card, D. & Krueger, A., "Minimum Wages and Employment", *AER* | 1994 | Income ↑ but employment ↓ for poor/middle |
+| **[Stackelberg competition](https://en.wikipedia.org/wiki/Stackelberg_competition)** | Von Stackelberg, H., *Market Structure and Equilibrium* | 1934 | Rich invest → poor respond with labor supply |
+| **[Gini coefficient](https://en.wikipedia.org/wiki/Gini_coefficient)** | Gini, C., *Variabilità e Mutabilità* | 1912 | Inequality measurement |
+| **[Kuznets curve](https://en.wikipedia.org/wiki/Kuznets_curve)** | Kuznets, S., "Economic Growth and Income Inequality", *AER* | 1955 | Inequality and development tradeoff |
 
 ### Data Calibration Sources
 
-- **OECD Economic Outlook** (2023) — GDP, unemployment, inflation baselines
-- **IMF World Economic Outlook** (April 2024) — Shock frequency, crisis calibration
-- **World Bank Development Indicators** — Gini coefficients, wealth distributions
-- **Federal Reserve FRED Database** — Interest rate mechanics, Taylor Rule parameters
-- **BLS Productivity Statistics** — Labor supply elasticities
+- **[OECD](https://en.wikipedia.org/wiki/OECD) Economic Outlook** (2023) — GDP, unemployment, inflation baselines
+- **[IMF](https://en.wikipedia.org/wiki/International_Monetary_Fund) World Economic Outlook** (April 2024) — shock frequency, crisis calibration
+- **[World Bank](https://en.wikipedia.org/wiki/World_Bank) Development Indicators** — Gini coefficients, wealth distributions
+- **[FRED](https://en.wikipedia.org/wiki/FRED_(Federal_Reserve_Economic_Data)) database** — interest rate mechanics, Taylor Rule parameters
+- **[Bureau of Labor Statistics](https://en.wikipedia.org/wiki/Bureau_of_Labor_Statistics) productivity statistics** — labor supply elasticities
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 socialcontract-v0/
@@ -518,8 +533,8 @@ socialcontract-v0/
 │   └── graders.py               # 5 phase-aware deterministic graders
 ├── server/
 │   └── app.py                   # OpenEnv multi-mode entry point
-├── train_grpo.py                # GRPO training script (Unsloth + TRL) (#1)
-├── train_colab.ipynb            # Colab notebook for GRPO training (7B, A100 GPU) (#1)
+├── train_grpo.py                # GRPO training script (PEFT + TRL) (#1)
+├── train_colab.ipynb            # Colab notebook for T4-friendly evidence run (#1)
 ├── generate_training_curves.py  # Training visualizations (#4)
 ├── benchmark_models.py          # Multi-model benchmarking (#10)
 ├── explain_policy.py            # Theory-grounded policy explanations (#11)
