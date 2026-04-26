@@ -12,7 +12,7 @@ Action space: 8 policy levers reflecting the full real-world toolkit:
 """
 
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Any, Optional
 
 try:
     from openenv.core.env_server.types import Action, Observation
@@ -54,6 +54,20 @@ class EconomicObservation(Observation):  # type: ignore[misc]
     ultra_rich_wealth: float = Field(..., description="Mean wealth of the ultra-rich class")
     task_id: str = Field(..., description="Current task identifier")
     task_description: str = Field(..., description="Natural language description of the task goal")
+    reward: Optional[float] = Field(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Step reward attached by the environment wrapper after step().",
+    )
+    done: bool = Field(
+        False,
+        description="Whether the episode has terminated after this observation.",
+    )
+    metadata: Optional[dict[str, Any]] = Field(
+        None,
+        description="Additional environment metadata such as reward breakdown and diagnostics.",
+    )
 
     def to_prompt(self) -> str:
         """Convert observation to a natural language economic report for the LLM."""
